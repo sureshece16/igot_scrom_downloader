@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iGOT SCORM Downloader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="https://igotkarmayogi.gov.in/assets/img/karmayogiLogo.svg" alt="Karmayogi Logo">
+                </div>
+                <div class="logo-text">
+                    <h1>iGOT SCORM Downloader</h1>
+                    <p>Karmayogi Bharat</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section card">
+                <h2>Enter Course DO IDs</h2>
+                <p class="subtitle">Enter one DO ID per line. You can paste multiple IDs at once.</p>
+
+                <textarea id="doIdsInput"
+                    placeholder="do_113768226086068224132&#10;do_113768226086068224133&#10;do_113768226086068224134&#10;..."
+                    rows="10"></textarea>
+
+                <div class="button-group">
+                    <button id="startBtn" class="btn btn-primary">
+                        <span class="btn-icon">🚀</span>
+                        Start Download
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        <span class="btn-icon">🗑️</span>
+                        Clear
+                    </button>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <section id="progressSection" class="progress-section card" style="display: none;">
+                <h2>Download Progress</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Courses</div>
+                        <div class="stat-value" id="totalCourses">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Completed</div>
+                        <div class="stat-value" id="completedCourses">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">SCORM Files</div>
+                        <div class="stat-value" id="scormFiles">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Status</div>
+                        <div class="stat-value status-text" id="statusText">Starting...</div>
+                    </div>
+                </div>
+
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-percentage" id="progressPercentage">0%</div>
+
+                <div class="current-activity">
+                    <h3>Current Activity</h3>
+                    <div id="currentActivity">Initializing...</div>
+                </div>
+
+                <div class="log-container">
+                    <h3>Activity Log</h3>
+                    <div id="logOutput"></div>
+                </div>
+            </section>
+
+            <!-- Download Section -->
+            <section id="downloadSection" class="download-section card" style="display: none;">
+                <div class="success-icon">✅</div>
+                <h2>Download Complete!</h2>
+                <p class="success-message">Your SCORM files have been packaged and are ready to download.</p>
+
+                <div class="download-stats">
+                    <div class="download-stat">
+                        <span class="stat-label">Courses Processed:</span>
+                        <span class="stat-value" id="finalCourses">0</span>
+                    </div>
+                    <div class="download-stat">
+                        <span class="stat-label">SCORM Files Downloaded:</span>
+                        <span class="stat-value" id="finalScorm">0</span>
+                    </div>
+                    <div class="download-stat">
+                        <span class="stat-label">Failed Downloads:</span>
+                        <span class="stat-value" id="finalFailed">0</span>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="summary-section">
+                    <h3>📋 Download Summary</h3>
+                    <button id="copySummaryBtn" class="btn btn-secondary" style="margin-bottom: 1rem;">
+                        <span class="btn-icon">📋</span>
+                        Copy Summary
+                    </button>
+                    <textarea id="summaryText" readonly rows="12"></textarea>
+                </div>
+
+                <button id="downloadZipBtn" class="btn btn-download">
+                    <span class="btn-icon">📦</span>
+                    Download ZIP File
+                </button>
+
+                <button id="startNewBtn" class="btn btn-secondary">
+                    <span class="btn-icon">🔄</span>
+                    Start New Download
+                </button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2026 Karmayogi Bharat | iGOT Platform</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>

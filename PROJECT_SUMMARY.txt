@@ -1,0 +1,376 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║                                                                       ║
+║        iGOT KARMAYOGI SCORM DOWNLOADER - PROJECT PACKAGE              ║
+║                                                                       ║
+║                      ⭐ COMPLETE SOLUTION ⭐                          ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+📦 PACKAGE CONTENTS (9 Files)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 CORE FILES:
+─────────────
+1. run_downloader.py (2.2 KB)       ⭐ START HERE - Main execution script
+2. scorm_downloader.py (11 KB)      📚 Core downloader class with all logic
+3. course_ids.py (534 B)            ✏️ EDIT THIS - Add your 75 course DO IDs
+
+🧪 TESTING & UTILITIES:
+───────────────────────
+4. test_single_course.py (2.0 KB)   🧪 Test with one course before full run
+5. do_id_helper.py (5.2 KB)         🔧 Extract DO IDs from text files
+
+📖 DOCUMENTATION:
+─────────────────
+6. QUICKSTART.txt (7.2 KB)          ⚡ Quick setup guide (3 steps)
+7. README.md (6.1 KB)               📘 Full documentation
+8. API_EXAMPLES.md (11 KB)          🔍 API response examples & workflow
+9. requirements.txt (17 B)          📦 Dependencies (only: requests)
+
+TOTAL SIZE: ~45 KB (Ultra lightweight!)
+
+
+🚀 QUICK START (3 COMMANDS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. pip install requests
+2. # Edit course_ids.py - add your 75 DO IDs
+3. python run_downloader.py
+
+That's it! The script handles everything else automatically.
+
+
+🎯 WHAT IT DOES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Fetches course details from iGOT API
+✅ Creates organized folder structure
+✅ Identifies SCORM resources automatically
+✅ Converts Google Storage URLs to iGOT content store
+✅ Downloads SCORM ZIP files with progress tracking
+✅ Saves metadata for all courses and resources
+✅ Provides comprehensive error handling
+✅ Shows detailed statistics and summary
+
+
+📊 WORKFLOW DIAGRAM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                  START
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  Load 75 Course DO IDs    │
+        │  from course_ids.py       │
+        └───────────┬───────────────┘
+                    │
+                    ↓
+        ╔═══════════════════════════╗
+        ║   FOR EACH COURSE:        ║
+        ╚═══════════╤═══════════════╝
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  API: Get Course Details  │
+        │  /api/content/v1/read/    │
+        │  {course_do_id}           │
+        └───────────┬───────────────┘
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  Extract:                 │
+        │  • Course Name            │
+        │  • childNodes (resources) │
+        └───────────┬───────────────┘
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  Create Course Folder:    │
+        │  {Name}_{DO_ID}/          │
+        └───────────┬───────────────┘
+                    │
+                    ↓
+        ╔═══════════════════════════╗
+        ║   FOR EACH RESOURCE:      ║
+        ╚═══════════╤═══════════════╝
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  API: Get Resource Details│
+        │  /api/content/v1/read/    │
+        │  {resource_do_id}         │
+        └───────────┬───────────────┘
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  Check mimeType:          │
+        │  = "application/vnd.      │
+        │   ekstep.html-archive"?   │
+        └───────┬───────────┬───────┘
+                │           │
+            YES │           │ NO
+                ↓           ↓
+    ┌───────────────┐   ┌──────────────┐
+    │  SCORM File!  │   │  Skip (PDF,  │
+    │               │   │  Video, etc.) │
+    └───────┬───────┘   └──────────────┘
+            │
+            ↓
+    ┌───────────────────┐
+    │  Create Resource  │
+    │  Subfolder        │
+    └───────┬───────────┘
+            │
+            ↓
+    ┌───────────────────┐
+    │  Get artifactUrl  │
+    └───────┬───────────┘
+            │
+            ↓
+    ┌───────────────────────────────┐
+    │  Convert URL:                 │
+    │  storage.googleapis.com       │
+    │  ↓                             │
+    │  igotkarmayogi.gov.in/        │
+    │  content-store                │
+    └───────┬───────────────────────┘
+            │
+            ↓
+    ┌───────────────────┐
+    │  Download ZIP     │
+    │  (with progress)  │
+    └───────┬───────────┘
+            │
+            ↓
+    ┌───────────────────┐
+    │  Save metadata    │
+    └───────────────────┘
+                    │
+        ╚═══════════╧═══════════════╝
+                    │
+                    ↓
+        ┌───────────────────────────┐
+        │  Generate Statistics:     │
+        │  • Courses processed      │
+        │  • SCORM files found      │
+        │  • Downloads succeeded    │
+        │  • Errors (if any)        │
+        └───────────┬───────────────┘
+                    │
+                    ↓
+                   END
+
+
+📁 OUTPUT STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+downloaded_courses/
+│
+├── Annual_Performance_Appraisal_Report_do_113768226086068224132/
+│   ├── course_metadata.json                    ← Course info
+│   │
+│   ├── Introduction_to_APAR_do_113465506620735488151/
+│   │   ├── do_113465506620735488151_xxx.zip   ← SCORM file
+│   │   └── metadata.json                       ← Resource info
+│   │
+│   ├── APAR_Module_2_do_113465506620735488152/
+│   │   ├── do_113465506620735488152_xxx.zip
+│   │   └── metadata.json
+│   │
+│   └── APAR_Module_3_do_113465506620735488153/
+│       ├── do_113465506620735488153_xxx.zip
+│       └── metadata.json
+│
+├── Leadership_Development_do_113768226086068224133/
+│   ├── course_metadata.json
+│   ├── Leadership_Basics_do_xxx/
+│   │   └── ...
+│   └── ...
+│
+└── ... (73 more courses)
+
+
+🎯 KEY FEATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ INTELLIGENT PROCESSING:
+  • Auto-detects SCORM files (checks mimeType)
+  • Skips non-SCORM resources (PDFs, videos, etc.)
+  • Smart filename sanitization (removes special chars)
+  
+📊 PROGRESS TRACKING:
+  • Real-time course/resource status
+  • Download progress with percentage
+  • Comprehensive statistics at the end
+  
+🛡️ ERROR HANDLING:
+  • Network timeout handling
+  • Invalid DO ID detection
+  • Missing artifact URL handling
+  • Continues on errors (doesn't stop entire process)
+  
+⚡ PERFORMANCE:
+  • Rate limiting (avoids API throttling)
+  • Efficient streaming downloads
+  • Parallel-ready (can be modified for async)
+  
+💾 DATA PRESERVATION:
+  • Course metadata (JSON)
+  • Resource metadata (JSON)
+  • Original URL tracking
+  • Download URL tracking
+
+
+🔧 CUSTOMIZATION OPTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Want to modify the script? Here are common customizations:
+
+1. Change Output Folder:
+   Edit scorm_downloader.py:
+   self.download_folder = "my_custom_folder"
+
+2. Adjust Timeouts:
+   requests.get(url, timeout=30)  ← Change this number
+
+3. Modify Rate Limiting:
+   time.sleep(0.5)  ← Between resources
+   time.sleep(2)    ← Between courses
+
+4. Change API Base URL:
+   base_url = "https://portal.igotkarmayogi.gov.in"
+
+
+📊 ESTIMATED PERFORMANCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For 75 courses:
+  • Average: 3-5 resources per course
+  • SCORM rate: ~40% of resources
+  • Total API calls: ~300-400
+  • Total downloads: ~120-150 ZIP files
+  • Estimated time: 30-60 minutes
+  • Estimated disk space: 500 MB - 2 GB
+
+
+🎓 EXAMPLE USE CASES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Backup all SCORM content from courses
+✅ Migrate content to another platform
+✅ Offline course content analysis
+✅ Content quality audit
+✅ Generate course inventory report
+✅ Bulk content download for archival
+
+
+❓ TROUBLESHOOTING GUIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem                     Solution
+─────────────────────────────────────────────────────────────────
+Module 'requests' not found → pip install requests
+No course DO IDs found      → Add IDs to course_ids.py
+Connection timeout          → Check internet connection
+API Error / Not Found       → Verify DO IDs are correct
+Permission denied           → Run with proper file permissions
+Disk space full             → Free up space (need ~2 GB)
+
+
+🔒 SECURITY & PRIVACY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ No credentials required (public content)
+✅ No personal data collection
+✅ All downloads from official iGOT domains
+✅ No external dependencies (only 'requests' library)
+✅ Metadata saved locally for audit trail
+
+
+📈 USAGE STATISTICS TRACKED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The script tracks and displays:
+  • Total courses to process
+  • Courses successfully processed
+  • Total SCORM files found
+  • Files successfully downloaded
+  • Failed downloads (with reasons)
+  • Detailed error log
+  • Output directory location
+
+
+🎉 READY TO START?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THREE SIMPLE STEPS:
+
+1️⃣  Install: pip install requests
+2️⃣  Configure: Edit course_ids.py (add 75 DO IDs)
+3️⃣  Execute: python run_downloader.py
+
+🧪 OPTIONAL - Test first with one course:
+    python test_single_course.py
+
+
+📚 DOCUMENTATION FILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+READ THIS FIRST:
+  • QUICKSTART.txt       ⚡ 3-step quick start (2 min read)
+
+THEN (IF NEEDED):
+  • README.md            📘 Full documentation (10 min read)
+  • API_EXAMPLES.md      🔍 API details & workflow (15 min read)
+
+
+💡 PRO TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Test with 1 course first (test_single_course.py)
+✅ Run during off-peak hours (faster downloads)
+✅ Ensure stable internet connection
+✅ Check disk space before starting
+✅ Keep the metadata files (useful for tracking)
+✅ Use do_id_helper.py if you have IDs in text format
+
+
+📞 SUPPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For issues:
+  1. Check error messages in console
+  2. Review the troubleshooting section
+  3. Test with a single course first
+  4. Verify DO IDs are correct
+  5. Check API_EXAMPLES.md for response formats
+
+
+🌟 FEATURES SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Zero configuration (except adding DO IDs)
+✅ Single dependency (requests library)
+✅ Comprehensive error handling
+✅ Progress tracking & statistics
+✅ Organized output structure
+✅ Metadata preservation
+✅ Smart URL conversion
+✅ Rate limiting built-in
+✅ Production-ready code
+✅ Well-documented
+✅ Easy to customize
+✅ Lightweight (~45 KB total)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                        🚀 HAPPY DOWNLOADING! 🚀
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Project: iGOT Karmayogi SCORM Downloader
+Version: 1.0
+Created: November 2025
+Purpose: Bulk download SCORM files from iGOT courses
+Author: Created for iGOT Karmayogi Project Management
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
