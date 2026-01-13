@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response
+from flask import Flask, render_template, request, jsonify, send_file, Response, redirect, url_for
 from scorm_downloader import SCORMDownloader
 import os
 import json
@@ -19,7 +19,10 @@ except ImportError:
     ENABLE_EMAIL = False
     print("⚠️  email_config.py not found. Email notifications disabled.")
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/igot_scrom_downloader/static')
+
+# Configure for subdirectory deployment
+app.config['APPLICATION_ROOT'] = '/igot_scrom_downloader'
 
 # Global variables for progress tracking
 progress_queue = queue.Queue()
@@ -251,6 +254,11 @@ def download_worker(do_ids):
     finally:
         download_status['is_running'] = False
 
+
+@app.route('/')
+def root():
+    """Redirect root to main application"""
+    return redirect('/igot_scrom_downloader')
 
 @app.route('/igot_scrom_downloader')
 def index():
