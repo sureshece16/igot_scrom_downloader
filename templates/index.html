@@ -24,6 +24,10 @@
                     <p>Karmayogi Bharat</p>
                 </div>
             </div>
+            <div class="user-info">
+                <span>👤 {{ session['user'] }}</span>
+                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+            </div>
         </header>
 
         <!-- Main Content -->

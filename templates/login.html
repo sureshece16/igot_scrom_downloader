@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - iGOT SCORM Downloader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="login-page">
+    <div class="login-container">
+        <!-- Right Side - Login Form -->
+        <div class="login-form-section">
+            <div class="login-header">
+                <div class="logo-icon">
+                    <img src="https://igotkarmayogi.gov.in/assets/img/karmayogiLogo.svg" alt="Karmayogi Logo">
+                </div>
+                <h1>iGOT SCORM Downloader</h1>
+                <p class="subtitle">Karmayogi Bharat</p>
+            </div>
+
+            <div class="login-form-wrapper">
+                <h2>Welcome Back</h2>
+                <p class="form-subtitle">Please login to continue</p>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    <span class="alert-icon">
+                        {% if category == 'error' %}⚠️{% else %}✓{% endif %}
+                    </span>
+                    <span class="alert-message">{{ message }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('login') }}" id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" class="form-input"
+                            placeholder="Enter your username" required autofocus>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="form-input"
+                            placeholder="Enter your password" required>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="remember" id="remember">
+                            <span class="checkbox-text">Remember me</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-login" id="loginBtn">
+                        <span class="btn-content">
+                            <span class="btn-icon">🔐</span>
+                            <span class="btn-text">Login</span>
+                        </span>
+                        <span class="btn-loading" style="display: none;">
+                            <span class="spinner"></span>
+                            <span>Logging in...</span>
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="login-footer">
+                <p>© 2026 Karmayogi Bharat | iGOT Platform</p>
+            </div>
+        </div>
+
+        <!-- Left Side - Branding -->
+        <div class="login-brand-section">
+            <div class="brand-content">
+                <div class="brand-icon">
+                    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="60" cy="60" r="55" stroke="url(#gradient1)" stroke-width="3" opacity="0.3" />
+                        <circle cx="60" cy="60" r="45" stroke="url(#gradient1)" stroke-width="3" opacity="0.5" />
+                        <circle cx="60" cy="60" r="35" stroke="url(#gradient1)" stroke-width="3" opacity="0.7" />
+                        <path d="M60 30 L60 50 M60 70 L60 90 M40 60 L30 60 M80 60 L90 60" stroke="#f97316"
+                            stroke-width="3" stroke-linecap="round" />
+                        <circle cx="60" cy="60" r="10" fill="#f97316" />
+                        <defs>
+                            <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#f97316;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h2>SCORM Content Downloader</h2>
+                <p>Streamline your learning content management with our powerful bulk download tool</p>
+                <ul class="feature-list">
+                    <li>
+                        <span class="feature-icon">⚡</span>
+                        <span>Bulk download SCORM packages</span>
+                    </li>
+                    <li>
+                        <span class="feature-icon">📦</span>
+                        <span>Automated ZIP packaging</span>
+                    </li>
+                    <li>
+                        <span class="feature-icon">📊</span>
+                        <span>Real-time progress tracking</span>
+                    </li>
+                    <li>
+                        <span class="feature-icon">🔒</span>
+                        <span>Secure authentication</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Animated Background -->
+            <div class="bg-animation">
+                <div class="circle circle-1"></div>
+                <div class="circle circle-2"></div>
+                <div class="circle circle-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add loading state on form submit
+        document.getElementById('loginForm').addEventListener('submit', function () {
+            const btn = document.getElementById('loginBtn');
+            const btnContent = btn.querySelector('.btn-content');
+            const btnLoading = btn.querySelector('.btn-loading');
+
+            btnContent.style.display = 'none';
+            btnLoading.style.display = 'flex';
+            btn.disabled = true;
+        });
+
+        // Auto-focus username field
+        document.getElementById('username').focus();
+    </script>
+</body>
+
+</html>

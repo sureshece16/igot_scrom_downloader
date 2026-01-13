@@ -1,15 +1,18 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, Response, redirect, url_for, session, flash
 from scorm_downloader import SCORMDownloader
 import os
 import json
 import threading
 import queue
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 import shutil
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import requests
+from functools import wraps
+import secrets
 
 # Try to import email config
 try:
@@ -24,6 +27,17 @@ app = Flask(__name__, static_url_path='/igot_scrom_downloader/static')
 # Configure for subdirectory deployment
 app.config['APPLICATION_ROOT'] = '/igot_scrom_downloader'
 
+# Session configuration
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_PATH'] = '/igot_scrom_downloader'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)  # 1 year, essentially no timeout
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to session cookie
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+
+# Login API configuration
+LOGIN_API_URL = 'https://portal.dev.karmayogibharat.net/cbp-tpc-ai/api/v1/auth/login'
+
 # Global variables for progress tracking
 progress_queue = queue.Queue()
 download_status = {
@@ -36,6 +50,15 @@ download_status = {
     'download_complete': False,
     'zip_file_path': None
 }
+
+def login_required(f):
+    """Decorator to protect routes that require authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def log_callback(message):
     """Callback function to receive logs from SCORMDownloader"""
@@ -260,7 +283,65 @@ def root():
     """Redirect root to main application"""
     return redirect('/igot_scrom_downloader')
 
+@app.route('/igot_scrom_downloader/login', methods=['GET', 'POST'])
+def login():
+    """Handle user login"""
+    # If already logged in, redirect to main app
+    if 'user' in session:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember = request.form.get('remember') == 'on'
+        
+        if not username or not password:
+            flash('Please enter both username and password', 'error')
+            return render_template('login.html')
+        
+        try:
+            # Call login API
+            response = requests.post(
+                LOGIN_API_URL,
+                data={'username': username, 'password': password},
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                # Store user in session
+                session.permanent = remember  # Only make permanent if remember me is checked
+                session['user'] = username
+                session['authenticated'] = True
+                session['login_time'] = datetime.now().isoformat()
+                
+                # Redirect to next page or index
+                next_page = request.args.get('next')
+                if next_page and next_page.startswith('/igot_scrom_downloader'):
+                    return redirect(next_page)
+                return redirect(url_for('index'))
+            else:
+                flash('Invalid username or password', 'error')
+                
+        except requests.exceptions.Timeout:
+            flash('Login service timeout. Please try again.', 'error')
+        except requests.exceptions.ConnectionError:
+            flash('Cannot connect to authentication service', 'error')
+        except Exception as e:
+            flash('An error occurred during login', 'error')
+            print(f"Login error: {e}")
+    
+    return render_template('login.html')
+
+@app.route('/igot_scrom_downloader/logout')
+def logout():
+    """Handle user logout"""
+    session.clear()
+    flash('You have been logged out successfully', 'success')
+    return redirect(url_for('login'))
+
 @app.route('/igot_scrom_downloader')
+@login_required
 def index():
     """Serve the main UI"""
     return render_template('index.html')
