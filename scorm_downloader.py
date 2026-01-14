@@ -20,6 +20,10 @@ class SCORMDownloader:
         self.log_callback = log_callback
         self.update_status_callback = update_status_callback
         
+        # YouTube rate limit prevention
+        self.youtube_request_delay = 5  # seconds between YouTube requests
+        self.last_youtube_request = 0
+        
         # Create main download folder
         Path(self.download_folder).mkdir(parents=True, exist_ok=True)
         
@@ -311,6 +315,13 @@ class SCORMDownloader:
             return None
         
         try:
+            # Rate limiting: Add delay between YouTube requests
+            time_since_last = time.time() - self.last_youtube_request
+            if self.last_youtube_request > 0 and time_since_last < self.youtube_request_delay:
+                wait_time = self.youtube_request_delay - time_since_last
+                self.log(f"     ⏱️  Rate limit delay: waiting {wait_time:.1f}s before YouTube request...")
+                time.sleep(wait_time)
+            
             # Extract video ID
             video_id = self.extract_youtube_id(video_url)
             
@@ -319,6 +330,7 @@ class SCORMDownloader:
                 return None
             
             self.log(f"     📹 Fetching YouTube transcript for video: {video_id}")
+            self.last_youtube_request = time.time()  # Track request time
             
             # Import and use the API correctly
             from youtube_transcript_api import YouTubeTranscriptApi as YT_API
