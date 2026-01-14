@@ -162,6 +162,14 @@ def send_email_summary(stats, zip_filename):
         progress_queue.put(error_msg)
 
 
+def update_status_callback(stats):
+    """Callback to update download_status with latest stats"""
+    global download_status
+    download_status['courses_completed'] = stats.get('processed_courses', 0)
+    download_status['scorm_files_downloaded'] = stats.get('downloaded_files', 0)
+    download_status['errors'] = stats.get('errors', [])
+
+
 def download_worker(do_ids):
     """Background worker to download SCORM files"""
     global download_status
@@ -207,8 +215,8 @@ def download_worker(do_ids):
         session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
         session_folder = f"downloaded_courses_web_{session_id}"
         
-        # Initialize downloader with custom folder
-        downloader = SCORMDownloader(log_callback=log_callback)
+        # Initialize downloader with custom folder and status callback
+        downloader = SCORMDownloader(log_callback=log_callback, update_status_callback=update_status_callback)
         downloader.download_folder = session_folder
         
         progress_queue.put(f"📦 Starting download of {len(do_ids)} courses...")

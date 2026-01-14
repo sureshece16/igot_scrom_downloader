@@ -4,13 +4,21 @@ import json
 import time
 from pathlib import Path
 import re
+from urllib.parse import urlparse, parse_qs
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    YOUTUBE_API_AVAILABLE = True
+except ImportError:
+    YOUTUBE_API_AVAILABLE = False
+    print("⚠️  youtube-transcript-api not installed. YouTube transcript support disabled.")
 
 class SCORMDownloader:
-    def __init__(self, base_url="https://portal.igotkarmayogi.gov.in", log_callback=None):
+    def __init__(self, base_url="https://portal.igotkarmayogi.gov.in", log_callback=None, update_status_callback=None):
         self.base_url = base_url
         self.content_api = f"{base_url}/api/content/v1/read"
         self.download_folder = "downloaded_courses"
         self.log_callback = log_callback
+        self.update_status_callback = update_status_callback
         
         # Create main download folder
         Path(self.download_folder).mkdir(parents=True, exist_ok=True)
@@ -22,6 +30,9 @@ class SCORMDownloader:
             "total_scorm_files": 0,
             "downloaded_files": 0,
             "failed_downloads": 0,
+            "total_mp4_files": 0,
+            "transcripts_fetched": 0,
+            "transcript_errors": 0,
             "errors": []
         }
     
@@ -213,6 +224,179 @@ class SCORMDownloader:
             self.stats["errors"].append(f"Download failed for {url}: {str(e)}")
             return False
     
+    def fetch_transcript(self, resource_id, max_retries=3):
+        """Fetch transcript from AI pipeline API with retry logic"""
+        api_url = f"https://learning-ai.prod.karmayogibharat.net/api/kb-pipeline/v3/transcoder/stats?resource_id={resource_id}"
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    wait_time = 2 ** (attempt - 1)
+                    self.log(f"     ⏱️  Waiting {wait_time} seconds before retry...")
+                    time.sleep(wait_time)
+                    self.log(f"     🔄 Retry attempt {attempt}/{max_retries}")
+                
+                self.log(f"     📡 Fetching transcript from AI pipeline...")
+                response = requests.get(api_url, timeout=30)
+                response.raise_for_status()
+                
+                data = response.json()
+                self.log(f"     ✅ Transcript data received")
+                self.log(f"     🔍 DEBUG: Response type: {type(data)}")
+                if isinstance(data, dict):
+                    self.log(f"     🔍 DEBUG: Response keys: {list(data.keys())}")
+                return data
+                
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries:
+                    self.log(f"     ⚠️  Attempt {attempt} failed: {str(e)}")
+                else:
+                    self.log(f"     ❌ All {max_retries} attempts failed: {str(e)}")
+                    self.stats["transcript_errors"] += 1
+                    self.stats["errors"].append(f"Transcript fetch failed for {resource_id}: {str(e)}")
+                    return None
+            except Exception as e:
+                self.log(f"     ❌ Unexpected error: {str(e)}")
+                self.stats["transcript_errors"] += 1
+                self.stats["errors"].append(f"Transcript error for {resource_id}: {str(e)}")
+                return None
+        
+        return None
+    
+    def download_vtt_file(self, vtt_url):
+        """Download VTT file content from URL"""
+        try:
+            self.log(f"     ⬇️  Downloading VTT file...")
+            response = requests.get(vtt_url, timeout=30)
+            response.raise_for_status()
+            
+            # Return VTT content as text
+            vtt_content = response.text
+            self.log(f"     ✅ VTT file downloaded ({len(vtt_content)} chars)")
+            return vtt_content
+            
+        except Exception as e:
+            self.log(f"     ❌ Failed to download VTT: {str(e)}")
+            return None
+    
+    def extract_youtube_id(self, url):
+        """Extract YouTube video ID from URL"""
+        try:
+            # Handle different YouTube URL formats
+            # https://www.youtube.com/watch?v=VIDEO_ID
+            # https://youtu.be/VIDEO_ID
+            # https://youtube.com/embed/VIDEO_ID
+            
+            parsed_url = urlparse(url)
+            
+            if 'youtube.com' in parsed_url.netloc:
+                if parsed_url.path == '/watch':
+                    query_params = parse_qs(parsed_url.query)
+                    return query_params.get('v', [None])[0]
+                elif parsed_url.path.startswith('/embed/'):
+                    return parsed_url.path.split('/embed/')[1].split('?')[0]
+            elif 'youtu.be' in parsed_url.netloc:
+                return parsed_url.path[1:].split('?')[0]
+            
+            return None
+            
+        except Exception as e:
+            self.log(f"     ❌ Failed to extract YouTube ID: {str(e)}")
+            return None
+    
+    def fetch_youtube_transcript(self, video_url):
+        """Fetch transcript from YouTube video"""
+        if not YOUTUBE_API_AVAILABLE:
+            self.log(f"     ⚠️  YouTube transcript API not available")
+            return None
+        
+        try:
+            # Extract video ID
+            video_id = self.extract_youtube_id(video_url)
+            
+            if not video_id:
+                self.log(f"     ❌ Could not extract video ID from URL")
+                return None
+            
+            self.log(f"     📹 Fetching YouTube transcript for video: {video_id}")
+            
+            # Import and use the API correctly
+            from youtube_transcript_api import YouTubeTranscriptApi as YT_API
+            
+            # Create instance and fetch transcript - fetch is an instance method
+            yt_api = YT_API()
+            transcript = yt_api.fetch(video_id, ['en'])
+            
+            # The fetch method returns a list of transcript items
+            if transcript:
+                # Combine transcript items into readable text
+                if isinstance(transcript, list):
+                    text = " ".join([item.get('text', '') for item in transcript])
+                else:
+                    text = str(transcript)
+                
+                self.log(f"     ✅ YouTube transcript fetched ({len(text)} chars)")
+                return text
+            else:
+                self.log(f"     ⚠️ No transcript data returned")
+                return None
+            
+        except Exception as e:
+            error_str = str(e)
+            # Check if it's a YouTube blocking error
+            if "Could not retrieve a transcript" in error_str or "blocked" in error_str.lower():
+                self.log(f"     ⚠️  YouTube transcript unavailable (YouTube may be blocking requests)")
+                self.log(f"     💡 This is a YouTube limitation, not an error in the downloader")
+            else:
+                self.log(f"     ❌ YouTube transcript error: {error_str[:100]}")
+            
+            self.stats["transcript_errors"] += 1
+            return None
+    
+    def save_transcript(self, transcript_data, resource_folder, resource_do_id, resource_name, transcript_type="json"):
+        """Save transcript data to text file"""
+        try:
+            # Create filename
+            sanitized_name = self.sanitize_filename(resource_name)[:25]
+            
+            # Different filename based on type
+            if transcript_type == "vtt":
+                transcript_filename = f"transcript_en_{sanitized_name}_{resource_do_id[-10:]}.txt"
+            elif transcript_type == "youtube":
+                transcript_filename = f"transcript_youtube_{sanitized_name}_{resource_do_id[-10:]}.txt"
+            else:
+                transcript_filename = f"transcript_{sanitized_name}_{resource_do_id[-10:]}.txt"
+            
+            transcript_path = os.path.normpath(os.path.join(resource_folder, transcript_filename))
+            
+            self.log(f"     💾 Saving transcript to: {transcript_filename}")
+            
+            # Format the transcript data as readable text
+            with open(transcript_path, 'w', encoding='utf-8') as f:
+                f.write(f"Transcript for Resource: {resource_name}\n")
+                f.write(f"Resource ID: {resource_do_id}\n")
+                f.write(f"Type: {transcript_type.upper()}\n")
+                f.write(f"Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 80 + "\n\n")
+                
+                # Write content based on type
+                if transcript_type == "vtt" or transcript_type == "youtube":
+                    # Plain text for VTT and YouTube
+                    f.write(transcript_data)
+                else:
+                    # JSON for API responses
+                    f.write(json.dumps(transcript_data, indent=2, ensure_ascii=False))
+            
+            self.log(f"     ✅ Transcript saved successfully")
+            self.stats["transcripts_fetched"] += 1
+            return True
+            
+        except Exception as e:
+            self.log(f"     ❌ Failed to save transcript: {str(e)}")
+            self.stats["transcript_errors"] += 1
+            self.stats["errors"].append(f"Failed to save transcript for {resource_do_id}: {str(e)}")
+            return False
+    
     def process_resource(self, resource_do_id, course_folder, course_name=""):
         """Process individual resource and download if SCORM"""
         self.log(f"\n  🔍 Checking resource: {resource_do_id}")
@@ -265,8 +449,125 @@ class SCORMDownloader:
                 
             else:
                 self.log(f"     ⚠️ No artifact URL found")
+        
+        # Check if it's an MP4 file
+        elif mime_type == "video/mp4":
+            self.log(f"     🎥 MP4 video detected!")
+            self.stats["total_mp4_files"] += 1
+            
+            # Create resource folder for MP4
+            sanitized_module_name = self.sanitize_filename(resource_name)[:25]
+            resource_folder_name = f"{sanitized_module_name}_{resource_do_id[-10:]}"
+            resource_folder_path = os.path.normpath(os.path.join(course_folder, resource_folder_name))
+            
+            Path(resource_folder_path).mkdir(parents=True, exist_ok=True)
+            
+            # Fetch transcript from AI pipeline
+            self.log(f"     📝 Fetching transcript for MP4...")
+            transcript_data = self.fetch_transcript(resource_do_id)
+            
+            if transcript_data:
+                # Check if response contains VTT files
+                vtt_files = []
+                if isinstance(transcript_data, dict):
+                    # Look for data array first
+                    data_array = None
+                    
+                    if 'data' in transcript_data and isinstance(transcript_data['data'], list):
+                        data_array = transcript_data['data']
+                    elif 'result' in transcript_data and isinstance(transcript_data['result'], list):
+                        data_array = transcript_data['result']
+                    elif isinstance(transcript_data, list):
+                        data_array = transcript_data
+                    
+                    # Extract transcripts from data array
+                    all_transcripts = []
+                    
+                    if data_array:
+                        self.log(f"     📦 Found {len(data_array)} data item(s)")
+                        for data_item in data_array:
+                            if isinstance(data_item, dict):
+                                # Look for transcription_urls (plural) or transcription_url (singular)
+                                transcript_urls = None
+                                
+                                if 'transcription_urls' in data_item:
+                                    transcript_urls = data_item['transcription_urls']
+                                elif 'transcription_url' in data_item:
+                                    transcript_urls = data_item['transcription_url']
+                                elif 'transcripts' in data_item:
+                                    transcript_urls = data_item['transcripts']
+                                
+                                if transcript_urls and isinstance(transcript_urls, list):
+                                    all_transcripts.extend(transcript_urls)
+                    else:
+                        # Fallback: try direct access to transcription fields
+                        for key in ['transcription_urls', 'transcription_url', 'transcripts']:
+                            if key in transcript_data and isinstance(transcript_data[key], list):
+                                all_transcripts = transcript_data[key]
+                                break
+                    
+                    # Now filter for English VTT files
+                    if all_transcripts:
+                        self.log(f"     📋 Found {len(all_transcripts)} transcript entries")
+                        
+                        for idx, item in enumerate(all_transcripts):
+                            if isinstance(item, dict):
+                                item_type = item.get('type', '')
+                                item_lang = item.get('language', '')
+                                
+                                self.log(f"        - Type: {item_type}, Language: {item_lang}")
+                                
+                                # Check for English language (case-insensitive)
+                                if item_type == 'vtt' and item_lang.lower() in ['english', 'en']:
+                                    vtt_files.append(item)
+                    else:
+                        self.log(f"     ⚠️  No transcript entries found in response")
+                    
+                if vtt_files:
+                    # Download English VTT file
+                    self.log(f"     📄 Found {len(vtt_files)} English VTT file(s)")
+                    for vtt_file in vtt_files:
+                        # Try both 'url' and 'uri' field names
+                        vtt_url = vtt_file.get('url') or vtt_file.get('uri')
+                        if vtt_url:
+                            self.log(f"     🔗 VTT URL: {vtt_url[:80]}...")
+                            vtt_content = self.download_vtt_file(vtt_url)
+                            if vtt_content:
+                                self.save_transcript(vtt_content, resource_folder_path, resource_do_id, resource_name, transcript_type="vtt")
+                else:
+                    # Save JSON response as fallback
+                    self.log(f"     📄 No English VTT files found, saving JSON response")
+                    self.save_transcript(transcript_data, resource_folder_path, resource_do_id, resource_name)
+            else:
+                self.log(f"     ⚠️ No transcript data available")
+        
+        # Check if it's a YouTube video (x-url mime type)
+        elif mime_type == "x-url" or "youtube.com" in str(resource_details.get("artifactUrl", "")).lower() or "youtu.be" in str(resource_details.get("artifactUrl", "")).lower():
+            self.log(f"     📹 YouTube video detected!")
+            
+            # Create resource folder
+            sanitized_module_name = self.sanitize_filename(resource_name)[:25]
+            resource_folder_name = f"{sanitized_module_name}_{resource_do_id[-10:]}"
+            resource_folder_path = os.path.normpath(os.path.join(course_folder, resource_folder_name))
+            
+            Path(resource_folder_path).mkdir(parents=True, exist_ok=True)
+            
+            # Get YouTube URL from artifactUrl
+            youtube_url = resource_details.get("artifactUrl", "")
+            
+            if youtube_url:
+                self.log(f"     📝 Fetching YouTube transcript...")
+                transcript_text = self.fetch_youtube_transcript(youtube_url)
+                
+                if transcript_text:
+                    self.save_transcript(transcript_text, resource_folder_path, resource_do_id, resource_name, transcript_type="youtube")
+                else:
+                    self.log(f"     ⚠️ Could not fetch YouTube transcript")
+            else:
+                self.log(f"     ⚠️ No YouTube URL found")
+        
         else:
-            self.log(f"     ⏭️  Not a SCORM file, skipping")
+            self.log(f"     ⏭️  Not a SCORM or MP4 file (Type: {mime_type}), skipping")
     
     def process_course(self, course_do_id):
         """Process a single course"""
@@ -303,6 +604,10 @@ class SCORMDownloader:
             time.sleep(0.5)
         
         self.stats["processed_courses"] += 1
+        
+        # Update external status if callback exists (for web UI)
+        if hasattr(self, 'update_status_callback') and self.update_status_callback:
+            self.update_status_callback(self.stats)
     
     def process_multiple_courses(self, course_do_ids):
         """Process multiple courses"""
@@ -339,6 +644,9 @@ class SCORMDownloader:
         self.log(f"📦 Total SCORM Files Found: {self.stats['total_scorm_files']}")
         self.log(f"⬇️  Successfully Downloaded: {self.stats['downloaded_files']}")
         self.log(f"❌ Failed Downloads: {self.stats['failed_downloads']}")
+        self.log(f"🎥 Total MP4 Files Found: {self.stats['total_mp4_files']}")
+        self.log(f"📝 Transcripts Fetched: {self.stats['transcripts_fetched']}")
+        self.log(f"❌ Transcript Errors: {self.stats['transcript_errors']}")
         
         if self.stats["errors"]:
             self.log(f"\n⚠️  Errors Encountered: {len(self.stats['errors'])}")
